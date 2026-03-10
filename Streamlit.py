@@ -99,9 +99,15 @@ left_ankle_angle_display = st.sidebar.empty()
 right_ankle_angle_display = st.sidebar.empty()
 
 run = st.checkbox("Run Camera")
-while True:
-    _, frame = camera.read()
+
+while run:
+    ret, frame = camera.read()
+    if not ret or frame is None:
+        st.warning("⚠️ Camera frame not received")
+        break;
+
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
     frame = cv2.flip(frame, 1)
 
     # YOLOv5 detection
@@ -116,7 +122,8 @@ while True:
                     c1 = (c1[0].item(), c1[1].item())
                     c2 = (c2[0].item(), c2[1].item())
                     object_frame = frame[c1[1]:c2[1], c1[0]:c2[0]]
-                    results_pose = pose.process(object_frame)
+                    results_pose = pose.process(frame)
+
 
                     if results_pose.pose_landmarks:
                         landmarks = results_pose.pose_landmarks.landmark
@@ -169,12 +176,17 @@ while True:
                             exercise_class = model_e.predict(X)[0]
                             exercise_class_prob = model_e.predict_proba(X)[0]
 
-                            if "down" in exercise_class:
-                                current_stage = "down"
-                                posture_status.append(exercise_class)
-                            elif current_stage=="down" and "up" in exercise_class:
-                                current_stage = "up"
-                                counter += 1
+                            confidence = np.max(exercise_class_prob)   # ✅ THIS LINE IS THE KEY
+
+                            if confidence > 0.75:   # 🔒 confidence gate
+                                if "down" in exercise_class and current_stage != "down":
+                                    current_stage = "down"
+
+                                elif "up" in exercise_class and current_stage == "down":
+                                    current_stage = "up"
+                                    counter += 1
+                                    counter_display.header(f"Current Count: {counter} reps")
+
                                 posture_status.append(exercise_class)
                                 counter_display.header(f"Current Count: {counter} reps")
                         except Exception:
@@ -190,7 +202,7 @@ while True:
                                     mp.solutions.drawing_styles.get_default_pose_landmarks_style()
                                 )
 
-                frame = object_frame
+                
 
         FRAME_WINDOW.image(frame)
 

@@ -54,7 +54,8 @@ with open(model_path, "rb") as f:
     model_e = pickle.load(f)
 
 FRAME_WINDOW = st.image([])
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+
 
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.7, model_complexity=2)
@@ -74,7 +75,13 @@ left_ankle_angle_display = st.sidebar.empty()
 right_ankle_angle_display = st.sidebar.empty()
 
 while True:
-    _, frame = camera.read()
+    ret, frame = camera.read()
+
+    if not ret or frame is None:
+        st.warning("Camera frame not received")
+        time.sleep(0.1)
+        continue
+
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame = cv2.flip(frame, 1)
 
